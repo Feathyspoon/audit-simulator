@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dave Featherstone: ISO 27001 Audit Simulator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 500: '#ef4444', 600: '#dc2626' },
+                        audit: { 800: '#1e293b', 900: '#0f172a' }
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 0.6s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'head-shake': 'shake 0.2s ease-in-out infinite',
+                        'sweat-drop': 'sweat 1.5s linear infinite',
+                        'float-smoke': 'smoke 2s ease-out infinite',
+                    },
+                    keyframes: {
+                        shake: {
+                            '0%, 100%': { transform: 'translateX(0) rotate(0deg)' },
+                            '25%': { transform: 'translateX(-4px) rotate(-2deg)' },
+                            '75%': { transform: 'translateX(4px) rotate(2deg)' },
+                        },
+                        sweat: {
+                            '0%': { transform: 'translateY(0) scale(0.8)', opacity: '1' },
+                            '100%': { transform: 'translateY(25px) scale(1.2)', opacity: '0' },
+                        },
+                        smoke: {
+                            '0%': { transform: 'translateY(0) scale(0.5)', opacity: '0.8' },
+                            '100%': { transform: 'translateY(-30px) scale(1.8)', opacity: '0' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for Corporate & Security Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .clip-beard { clip-path: polygon(10% 0%, 90% 0%, 100% 70%, 50% 100%, 0% 70%); }
+        .grid-bg {
+            background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col justify-between grid-bg text-slate-100 overflow-x-hidden selection:bg-red-500 selection:text-white">
+
+    <header class="w-full bg-slate-900/90 backdrop-blur border-b border-slate-800 py-3 px-4 sm:px-8 flex justify-between items-center sticky top-0 z-40">
+        <div class="flex items-center gap-3">
+            <div class="bg-red-600 text-white p-2 rounded-lg font-bold shadow-lg shadow-red-900/40 text-lg">
+                <i class="fa-solid fa-shield-cat"></i>
+            </div>
+            <div>
+                <h1 class="text-lg sm:text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-red-400 via-orange-300 to-amber-200">
+                    DAVE FEATHERSTONE: AUDIT SIMULATOR
+                </h1>
+                <p class="text-xs text-slate-400 hidden sm:block">ISO/IEC 27001:2022 ISMS Compliance Trial</p>
+            </div>
+        </div>
+
+        <!-- Header Stats & Sound Controls -->
+        <div class="flex items-center gap-4">
+            <button id="soundToggleBtn" onclick="game.toggleSound()" class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-semibold flex items-center gap-2 transition">
+                <i id="soundIcon" class="fa-solid fa-volume-high text-emerald-400"></i>
+                <span id="soundText" class="hidden md:inline">AUDIO ON</span>
+            </button>
+            <div class="bg-slate-800/80 border border-slate-700/80 px-3 py-1.5 rounded-lg text-xs font-mono flex items-center gap-3">
+                <span class="text-slate-400">PASSED: <strong id="scoreDisplay" class="text-emerald-400 text-sm">0</strong></span>
+                <span class="text-slate-600">|</span>
+                <span class="text-slate-400">STRIKES: <span id="strikeDisplay" class="text-red-400 font-bold text-sm">0/5</span></span>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- LEFT COLUMN: Dave Featherstone Avatar & Stress Indicator -->
+        <section class="lg:col-span-5 bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-2xl flex flex-col items-center justify-between min-h-[460px] relative overflow-hidden">
+            
+            <!-- Auditor Speech Bubble -->
+            <div class="w-full bg-amber-500/10 border border-amber-500/30 text-amber-200 p-3 rounded-xl mb-4 text-xs sm:text-sm relative">
+                <div class="font-bold flex items-center justify-between text-amber-400 mb-1">
+                    <span><i class="fa-solid fa-user-tie"></i> LEAD AUDITOR (INSPECTOR VANCE):</span>
+                    <span id="clauseBadge" class="bg-amber-900/60 text-amber-300 px-2 py-0.5 rounded text-[10px] mono">ANNEX A.8</span>
+                </div>
+                <p id="auditorComment" class="italic">"Well Dave, let's look at your Information Security Management System evidence..."</p>
+            </div>
+
+            <!-- Dave Avatar Render Box -->
+            <div class="relative w-full max-w-[280px] h-[280px] flex items-center justify-center my-2">
+                <!-- Exploding Canvas Particle Overlay -->
+                <canvas id="explosionCanvas" class="absolute inset-0 z-30 pointer-events-none w-full h-full"></canvas>
+
+                <!-- Dave SVG Visual Engine -->
+                <div id="daveWrapper" class="relative z-10 transition-transform duration-300">
+                    <svg id="daveSvg" viewBox="0 0 300 300" class="w-64 h-64 drop-shadow-2xl overflow-visible">
+                        <!-- Definitions for gradients -->
+                        <defs>
+                            <radialGradient id="skinGrad" cx="50%" cy="40%" r="60%">
+                                <stop id="skinStop1" offset="0%" stop-color="#ffdbac"/>
+                                <stop id="skinStop2" offset="100%" stop-color="#e0ac69"/>
+                            </radialGradient>
+                            <radialGradient id="blushGrad" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stop-color="#ff0000" stop-opacity="0.6"/>
+                                <stop offset="100%" stop-color="#ff0000" stop-opacity="0"/>
+                            </radialGradient>
+                            <linearGradient id="beardGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#4a2c11"/>
+                                <stop offset="80%" stop-color="#2d1a0a"/>
+                                <stop offset="100%" stop-color="#1f1005"/>
+                            </linearGradient>
+                        </defs>
+
+                        <!-- Background Aura for Stress -->
+                        <circle id="stressAura" cx="150" cy="150" r="120" fill="red" opacity="0" class="transition-opacity duration-500" />
+
+                        <!-- Dave Body / Suit -->
+                        <g id="bodyGroup">
+                            <path d="M 80,260 Q 150,240 220,260 L 240,300 L 60,300 Z" fill="#1e293b" />
+                            <!-- Tie -->
+                            <polygon points="142,250 158,250 162,295 150,305 138,295" fill="#dc2626" />
+                            <polygon points="144,242 156,242 159,250 141,250" fill="#991b1b" />
+                            <!-- Collar -->
+                            <polygon points="120,245 142,250 135,265" fill="#f8fafc" />
+                            <polygon points="180,245 158,250 165,265" fill="#f8fafc" />
+                            <!-- InfoSec Badge -->
+                            <rect x="75" y="260" width="30" height="20" rx="3" fill="#3b82f6" />
+                            <text x="90" y="273" font-size="6" fill="white" font-weight="bold" text-anchor="middle">INFOSEC MANAGER</text>
+                        </g>
+
+                        <!-- Head & Neck -->
+                        <g id="headGroup">
+                            <rect x="135" y="210" width="30" height="35" fill="url(#skinGrad)" rx="5" />
+                            
+                            <!-- Head Base -->
+                            <ellipse id="headBase" cx="150" cy="145" rx="65" ry="75" fill="url(#skinGrad)" />
+
+                            <!-- Redness Overlay for High Stress -->
+                            <ellipse id="rednessOverlay" cx="150" cy="145" rx="65" ry="75" fill="red" opacity="0" />
+
+                            <!-- Veins (Visible at stress 3+) -->
+                            <g id="veinsGroup" opacity="0">
+                                <path d="M 195,110 Q 200,100 205,105 T 210,95" stroke="#991b1b" stroke-width="2.5" fill="none" />
+                                <path d="M 95,110 Q 100,100 90,105 T 85,95" stroke="#991b1b" stroke-width="2.5" fill="none" />
+                            </g>
+
+                            <!-- Sweat Drops -->
+                            <g id="sweatGroup" opacity="0">
+                                <path d="M 90,120 Q 88,125 90,130 Q 92,125 90,120 Z" fill="#38bdf8" class="animate-sweat-drop" />
+                                <path d="M 205,115 Q 203,120 205,125 Q 207,120 205,115 Z" fill="#38bdf8" class="animate-sweat-drop" style="animation-delay: 0.5s;" />
+                            </g>
+
+                            <!-- Ears -->
+                            <ellipse cx="83" cy="145" rx="10" ry="14" fill="url(#skinGrad)" />
+                            <ellipse cx="217" cy="145" rx="10" ry="14" fill="url(#skinGrad)" />
+
+                            <!-- Eyes -->
+                            <g id="eyesGroup">
+                                <!-- Left Eye -->
+                                <ellipse id="leftEyeWhite" cx="125" cy="135" rx="12" ry="10" fill="white" stroke="#334155" stroke-width="1.5" />
+                                <circle id="leftPupil" cx="125" cy="135" r="4" fill="#1e1b4b" />
+                                
+                                <!-- Right Eye -->
+                                <ellipse id="rightEyeWhite" cx="175" cy="135" rx="12" ry="10" fill="white" stroke="#334155" stroke-width="1.5" />
+                                <circle id="rightPupil" cx="175" cy="135" r="4" fill="#1e1b4b" />
+                            </g>
+
+                            <!-- Eyebrows -->
+                            <g id="eyebrowsGroup">
+                                <path id="leftBrow" d="M 110,120 Q 125,115 140,122" stroke="#2d1a0a" stroke-width="4.5" stroke-linecap="round" fill="none" />
+                                <path id="rightBrow" d="M 160,122 Q 175,115 190,120" stroke="#2d1a0a" stroke-width="4.5" stroke-linecap="round" fill="none" />
+                            </g>
+
+                            <!-- Glasses -->
+                            <g id="glassesGroup">
+                                <rect x="108" y="122" width="34" height="24" rx="4" fill="none" stroke="#0f172a" stroke-width="3.5" />
+                                <rect x="158" y="122" width="34" height="24" rx="4" fill="none" stroke="#0f172a" stroke-width="3.5" />
+                                <line x1="142" y1="130" x2="158" y2="130" stroke="#0f172a" stroke-width="3.5" />
+                                <line x1="83" y1="132" x2="108" y2="128" stroke="#0f172a" stroke-width="3" />
+                                <line x1="192" y1="128" x2="217" y2="132" stroke="#0f172a" stroke-width="3" />
+                            </g>
+
+                            <!-- Mouth -->
+                            <path id="mouth" d="M 135,175 Q 150,180 165,175" stroke="#7c2d12" stroke-width="3.5" stroke-linecap="round" fill="none" />
+
+                            <!-- Nose -->
+                            <path d="M 150,135 L 146,155 L 154,155" stroke="#c68a4c" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+
+                            <!-- Signature 42yo Fat Beard & Hair -->
+                            <!-- Hair (Receding / Thinning top) -->
+                            <path d="M 88,120 C 85,85 110,70 150,70 C 190,70 215,85 212,120 C 200,90 180,82 150,82 C 120,82 100,90 88,120 Z" fill="#2d1a0a" />
+
+                            <!-- Big Lush Beard (Dave Featherstone Signature) -->
+                            <path id="beard" d="M 84,145 Q 80,180 100,210 Q 130,240 150,242 Q 170,240 200,210 Q 220,180 216,145 C 216,170 195,190 180,195 C 160,202 140,202 120,195 C 105,190 84,170 84,145 Z" fill="url(#beardGrad)" />
+                            
+                            <!-- Mustache -->
+                            <path d="M 125,168 Q 150,162 175,168 Q 185,178 170,180 Q 150,172 130,180 Q 115,178 125,168 Z" fill="#2d1a0a" />
+                        </g>
+
+                        <!-- Steam / Smoke from Ears (Stress level 4) -->
+                        <g id="steamGroup" opacity="0">
+                            <circle cx="70" cy="140" r="8" fill="#e2e8f0" class="animate-float-smoke" />
+                            <circle cx="230" cy="140" r="8" fill="#e2e8f0" class="animate-float-smoke" style="animation-delay: 0.7s;" />
+                        </g>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Stress Meter Bar -->
+            <div class="w-full mt-2">
+                <div class="flex justify-between text-xs font-bold mb-1">
+                    <span class="text-slate-400">DAVE'S BLOOD PRESSURE / STRESS:</span>
+                    <span id="stressPercent" class="text-emerald-400 font-mono">NORMAL (120/80)</span>
+                </div>
+                <div class="w-full h-4 bg-slate-950 border border-slate-800 rounded-full overflow-hidden p-0.5">
+                    <div id="stressBar" class="h-full bg-gradient-to-r from-emerald-500 via-amber-500 to-red-600 w-0 transition-all duration-500 rounded-full"></div>
+                </div>
+            </div>
+
+            <!-- Lifeline / Coping Actions -->
+            <div class="w-full grid grid-cols-2 gap-2 mt-4">
+                <button id="coffeeBtn" onclick="game.useCoping('coffee')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-mug-hot text-amber-400"></i> Lukewarm Coffee (-1 Strike)
+                </button>
+                <button id="blameBtn" onclick="game.useCoping('blame')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-user-ninja text-purple-400"></i> Blame 3rd Party (50/50)
+                </button>
+            </div>
+        </section>
+
+        <!-- RIGHT COLUMN: Interactive Question Panel -->
+        <section class="lg:col-span-7 bg-slate-900/80 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-2xl flex flex-col justify-between min-h-[460px] relative">
+            
+            <!-- Question Header -->
+            <div>
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3 mb-4">
+                    <span class="bg-red-500/10 text-red-400 border border-red-500/30 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                        <i class="fa-solid fa-triangle-exclamation mr-1"></i> Auditor Inquest #<span id="questionNum">1</span>
+                    </span>
+                    <span id="controlCategory" class="text-xs font-mono text-slate-400 bg-slate-800 px-2.5 py-1 rounded-md">
+                        ISO 27001:2022 Controls
+                    </span>
+                </div>
+
+                <!-- Main Question Text -->
+                <h2 id="questionText" class="text-base sm:text-lg font-bold text-slate-100 leading-snug mb-6">
+                    Loading audit questions...
+                </h2>
+
+                <!-- Multiple Choice Options -->
+                <div id="optionsContainer" class="space-y-3">
+                    <!-- Dynamic Answer Buttons rendered by JS -->
+                </div>
+            </div>
+
+            <!-- Feedback / Result Box -->
+            <div id="feedbackBox" class="mt-6 p-4 rounded-xl border hidden transition-all duration-300">
+                <div class="flex items-start gap-3">
+                    <div id="feedbackIcon" class="text-2xl mt-0.5"></div>
+                    <div>
+                        <h4 id="feedbackTitle" class="font-bold text-sm"></h4>
+                        <p id="feedbackText" class="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed"></p>
+                    </div>
+                </div>
+                <button id="nextBtn" onclick="game.nextQuestion()" class="mt-4 w-full py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg text-sm shadow-lg shadow-red-900/30 transition flex items-center justify-center gap-2">
+                    <span>NEXT AUDIT QUESTION</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- Footer / Disclaimers -->
+            <div id="cardFooter" class="mt-6 text-center text-[11px] text-slate-500 border-t border-slate-800/60 pt-3">
+                Remember: In ISO 27001, "If it isn't documented, it never happened." Good luck Dave.
+            </div>
+        </section>
+    </main>
+
+    <div id="gameOverModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border-2 border-red-600 rounded-2xl max-w-lg w-full p-6 sm:p-8 text-center shadow-2xl relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-red-600/20 rounded-full blur-2xl"></div>
+            
+            <div class="w-20 h-20 bg-red-600/20 border-2 border-red-500 text-red-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-4 animate-bounce">
+                <i class="fa-solid fa-explosion"></i>
+            </div>
+
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-red-500 tracking-tight">AUDIT FAILURE!</h2>
+            <p class="text-sm text-slate-300 font-semibold mt-1">Dave's head completely exploded under ISO 27001 pressure.</p>
+
+            <div class="my-6 bg-slate-950/80 border border-slate-800 p-4 rounded-xl text-left space-y-2 text-xs font-mono">
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Victim:</span>
+                    <span class="text-slate-200">Dave Featherstone (Age 42)</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Role:</span>
+                    <span class="text-slate-200">Information Security Manager</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Questions Answered:</span>
+                    <span id="finalScore" class="text-emerald-400 font-bold">0</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Auditor Verdict:</span>
+                    <span class="text-red-400 font-bold">MAJOR NON-CONFORMITY (NC-01)</span>
+                </div>
+            </div>
+
+            <p id="deathQuote" class="text-xs italic text-amber-300 bg-amber-900/30 border border-amber-700/40 p-3 rounded-lg mb-6">
+                "We found zero evidence of backup testing log review procedures..."
+            </p>
+
+            <button onclick="game.restart()" class="w-full py-3 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-extrabold rounded-xl text-sm shadow-xl transition transform active:scale-95">
+                <i class="fa-solid fa-rotate-right mr-2"></i> RESTART AUDIT SIMULATION
+            </button>
+        </div>
+    </div>
+
+    <!-- Footer credits -->
+    <footer class="py-3 text-center text-xs text-slate-600 border-t border-slate-900">
+        ISO 27001 Auditor Simulator &bull; Dedicated to Dave Featherstone and InfoSec teams everywhere.
+    </footer>
+
+    <script>
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.isMuted = false;
+                this.bgmInterval = null;
+                this.bgmStep = 0;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playTone(freq, type, duration, vol = 0.1) {
+                if (this.isMuted) return;
+                this.init();
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch(e){}
+            }
+
+            playCorrect() {
+                if (this.isMuted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => {
+                    setTimeout(() => this.playTone(f, 'sine', 0.25, 0.15), i * 70);
+                });
+            }
+
+            playWrong() {
+                if (this.isMuted) return;
+                this.init();
+                this.playTone(180, 'sawtooth', 0.4, 0.25);
+                setTimeout(() => this.playTone(130, 'sawtooth', 0.5, 0.3), 150);
+            }
+
+            playSip() {
+                if (this.isMuted) return;
+                this.init();
+                // Slurp / sip sound synthesis
+                this.playTone(400, 'triangle', 0.1, 0.05);
+                setTimeout(() => this.playTone(600, 'sine', 0.15, 0.08), 80);
+            }
+
+            playExplosion() {
+                if (this.isMuted) return;
+                this.init();
+                // Low rumble + noise explosion simulation
+                const bufferSize = this.ctx.sampleRate * 1.5;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const output = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    output[i] = Math.random() * 2 - 1;
+                }
+                const whiteNoise = this.ctx.createBufferSource();
+                whiteNoise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(800, this.ctx.currentTime);
+                filter.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 1.2);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 1.4);
+
+                whiteNoise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                whiteNoise.start();
+            }
+
+            startBGM() {
+                if (this.bgmInterval) return;
+                // Tense corporate audit ticking / bass pulse
+                const notes = [110, 110, 123.47, 110, 130.81, 110, 98, 110];
+                this.bgmInterval = setInterval(() => {
+                    if (!this.isMuted) {
+                        const freq = notes[this.bgmStep % notes.length];
+                        this.playTone(freq, 'triangle', 0.1, 0.03);
+                        // Clock tick sound every 2 steps
+                        if (this.bgmStep % 2 === 0) {
+                            this.playTone(1200, 'sine', 0.03, 0.015);
+                        }
+                        this.bgmStep++;
+                    }
+                }, 350);
+            }
+
+            stopBGM() {
+                if (this.bgmInterval) {
+                    clearInterval(this.bgmInterval);
+                    this.bgmInterval = null;
+                }
+            }
+        }
+
+        const QUESTIONS_BANK = [
+            {
+                category: "Annex A.5 Organizational Controls",
+                clause: "A.5.15",
+                question: "Auditor Vance demands evidence for ISO 27001:2022 Control A.5.15 (Access Control). Dave shows a signed note saying 'Dave trusts everyone in IT'. How does the Auditor react?",
+                options: [
+                    "Accepts it as a risk-accepted formal policy",
+                    "Issues a Major Non-Conformity for lack of topic-specific access rules & authorization workflow",
+                    "Compliments Dave on team synergy",
+                    "Asks Dave to rewrite it in blue ink"
+                ],
+                correct: 1,
+                explanation: "Access Control requires formal topic-specific policies based on business and security requirements, user access provisioning, and privilege management."
+            },
+            {
+                category: "Clause 6 Planning",
+                clause: "Clause 6.1.2",
+                question: "In Clause 6.1.2 (Information Security Risk Assessment), what must Dave ensure regarding risk criteria?",
+                options: [
+                    "Risk assessment is done only when Dave feels anxious",
+                    "Risk criteria must include risk acceptance criteria and criteria for performing risk assessments",
+                    "All risks must automatically be assigned a score of 10/10",
+                    "Risks are only assessed if they cost less than £50"
+                ],
+                correct: 1,
+                explanation: "ISO 27001 requires established and maintained information security risk criteria, including risk acceptance criteria and assessment rules."
+            },
+            {
+                category: "Annex A.8 Technological Controls",
+                clause: "A.8.23",
+                question: "Inspector Vance asks about Annex A.8.23 (Web Filtering). Dave says 'We tell staff not to visit dodgy sites on the intranet noticeboard.' Is this sufficient?",
+                options: [
+                    "Yes, awareness training replaces technical controls",
+                    "No, technical web filtering controls must restrict access to unauthorized or malicious web resources",
+                    "Yes, provided Dave stamped the noticeboard",
+                    "Only if the noticeboard is locked behind glass"
+                ],
+                correct: 1,
+                explanation: "Control A.8.23 mandates technical measures to manage access to external websites to reduce exposure to malicious content."
+            },
+            {
+                category: "Annex A.5 Organizational Controls",
+                clause: "A.5.23",
+                question: "When evaluating Cloud Services security (A.5.23), what essential requirement must Dave demonstrate to the auditor?",
+                options: [
+                    "That the AWS account was created using a personal Gmail",
+                    "Processes for acquisition, use, management, and termination of cloud services in line with security requirements",
+                    "That Dave knows the cloud vendor's CEO on LinkedIn",
+                    "A screenshot of the cloud login page printed on glossy paper"
+                ],
+                correct: 1,
+                explanation: "A.5.23 requires explicit processes for defining and managing security controls when using third-party cloud services."
+            },
+            {
+                category: "Clause 9 Performance Evaluation",
+                clause: "Clause 9.2",
+                question: "Auditor Vance checks Clause 9.2 (Internal Audit). Dave audited his own ISMS setup and gave himself 100%. What fundamental principle did Dave violate?",
+                options: [
+                    "Clause 9.2 requires auditors to be impartial and objective; auditors cannot audit their own work",
+                    "Dave didn't buy donuts for the internal audit meeting",
+                    "100% is mathematically impossible in Microsoft Excel",
+                    "Internal audits must only be performed on full moons"
+                ],
+                correct: 0,
+                explanation: "ISO 27001 Clause 9.2 explicitly mandates that auditor selection and audit conduct must ensure objectivity and impartiality."
+            },
+            {
+                category: "Annex A.8 Technological Controls",
+                clause: "A.8.9",
+                question: "Control A.8.9 focuses on Configuration Management. Which evidence best satisfies Inspector Vance during the audit?",
+                options: [
+                    "A post-it note on the server rack reading 'DO NOT TOUCH CONFIGS'",
+                    "Documented, implemented, and monitored standard security baselines for all hardware and software",
+                    "Dave remembering the firewall rules in his head",
+                    "Default admin credentials left unchanged for emergency access"
+                ],
+                correct: 1,
+                explanation: "A.8.9 requires establishing, documenting, implementing, monitoring, and reviewing security configurations for hardware, software, and networks."
+            },
+            {
+                category: "Annex A.7 Physical Controls",
+                clause: "A.7.1",
+                question: "Inspector Vance visits the server room and finds the door wedged open with a brick because 'it gets hot in there'. What non-conformity is raised?",
+                options: [
+                    "Minor issue: Brick needs to be fire-rated",
+                    "Major Non-Conformity against Physical Security Perimeters (A.7.1) & Physical Entry Controls (A.7.2)",
+                    "No issue if the brick is painted yellow",
+                    "Observation: Server room needs a nicer brick"
+                ],
+                correct: 1,
+                explanation: "Physical security perimeters must be defined and protected. Propping open server room doors completely breaks physical access control."
+            },
+            {
+                category: "Clause 5 Leadership",
+                clause: "Clause 5.1",
+                question: "How must Top Management demonstrate leadership and commitment regarding the ISMS under Clause 5.1?",
+                options: [
+                    "By forwarding Dave's security emails once a year",
+                    "By ensuring information security policy and objectives are established, integrated into processes, and adequately resourced",
+                    "By wearing a lanyard that says 'Cyber Security Champion'",
+                    "By letting Dave take the blame when an incident occurs"
+                ],
+                correct: 1,
+                explanation: "Clause 5.1 requires senior leadership to actively ensure policy integration, resource availability, and alignment with strategic direction."
+            },
+            {
+                category: "Annex A.8 Technological Controls",
+                clause: "A.8.24",
+                question: "What is a mandatory requirement for Cryptographic Controls under Annex A.8.24?",
+                options: [
+                    "Using ROT13 cipher for all database passwords",
+                    "Rules for effective use of cryptography and key management processes throughout their lifecycle",
+                    "Hiding the encryption key in Dave's top desk drawer",
+                    "Only encrypting files on Fridays"
+                ],
+                correct: 1,
+                explanation: "A.8.24 requires policies on cryptographic controls and comprehensive key management covering generation, storage, distribution, and revocation."
+            },
+            {
+                category: "Clause 6 Planning",
+                clause: "SoA (Statement of Applicability)",
+                question: "The Auditor demands to see Dave's Statement of Applicability (SoA). What MUST the SoA contain under ISO 27001:2022?",
+                options: [
+                    "A list of Dave's favorite cybersecurity memes",
+                    "All controls selected, justification for inclusion/exclusion, implementation status, and policy references",
+                    "Just a signature from the CEO acknowledging that IT exists",
+                    "A list of antivirus software installed on Dave's laptop"
+                ],
+                correct: 1,
+                explanation: "The SoA must detail necessary controls, justifications for inclusion, whether they are implemented, and reasons for excluding any Annex A controls."
+            },
+            {
+                category: "Annex A.5 Organizational Controls",
+                clause: "A.5.24",
+                question: "In Incident Management (A.5.24), Inspector Vance asks for the incident log. Dave says 'We haven't logged any incidents, so we are 100% secure.' How does Vance reply?",
+                options: [
+                    "Awards Dave a trophy for perfect security",
+                    "Raises an immediate concern: Zero logged incidents indicates poor detection or lack of reporting channels",
+                    "Asks Dave to teach a masterclass on zero-incident operations",
+                    "Signs off the audit early"
+                ],
+                correct: 1,
+                explanation: "A lack of incident logs almost always indicates ineffective detection mechanisms or reporting culture rather than flawless security."
+            },
+            {
+                category: "Annex A.6 People Controls",
+                clause: "A.6.3",
+                question: "Inspector Vance tests employee awareness (A.6.3) by asking Bob in Accounting if he knows what a phishing link is. Bob says 'It's how Dave sends us HMRC tax forms.' What control failed?",
+                options: [
+                    "A.6.3 Information Security Awareness, Education, and Training",
+                    "Bob's computer monitor size",
+                    "HMRC tax code regulations",
+                    "A.8.1 User Endpoint Devices"
+                ],
+                correct: 0,
+                explanation: "A.6.3 mandates that personnel receive appropriate security awareness training and updates relevant to their organizational roles."
+            }
+        ];
+
+        /* Dynamic Procedural Generator to make questions infinite */
+        function generateProceduralQuestion(num) {
+            const controls = [
+                { id: "A.5.1", name: "Policies for information security", bad: "Dave wrote it on a napkin in 2014 and lost it", good: "Reviewed annually and approved by management" },
+                { id: "A.8.12", name: "Data leakage prevention", bad: "Dave disabled USB blocking so he could plug in his digital photo frame", good: "DLP tools deployed to endpoints monitoring sensitive data egress" },
+                { id: "A.8.16", name: "Monitoring activities", bad: "Logs are saved to a USB stick that gets overwritten every 2 hours", good: "Centralized SIEM with automated alerting and log retention policies" },
+                { id: "A.5.8", name: "Information security in project management", bad: "Security is evaluated 5 minutes before going live into production", good: "Security gates integrated throughout system development lifecycle" }
+            ];
+
+            const c = controls[num % controls.length];
+            return {
+                category: `Annex A Generated Inquest #${num}`,
+                clause: c.id,
+                question: `Inspector Vance scrutinizes Control ${c.id} (${c.name}). Dave is asked to produce audit evidence. Which answer satisfies ISO 27001 requirements?`,
+                options: [
+                    `Dave's response: "${c.bad}"`,
+                    `Formal evidence: ${c.good}`,
+                    `Dave offers Auditor Vance a lukewarm tea to skip this control`,
+                    `Dave claims this control only applies to quantum computers`
+                ],
+                correct: 1,
+                explanation: `Control ${c.id} mandates that ${c.name.toLowerCase()} must be formally documented, implemented, and monitored for compliance.`
+            };
+        }
+
+        class AuditGame {
+            constructor() {
+                this.score = 0;
+                this.strikes = 0;
+                this.maxStrikes = 5;
+                this.currentQuestionIdx = 0;
+                this.sound = new SoundEngine();
+                this.copingUsed = { coffee: false, blame: false };
+                this.currentQ = null;
+                this.answered = false;
+            }
+
+            init() {
+                this.renderDaveStress(0);
+                this.loadQuestion();
+            }
+
+            toggleSound() {
+                this.sound.isMuted = !this.sound.isMuted;
+                const icon = document.getElementById('soundIcon');
+                const text = document.getElementById('soundText');
+                if (this.sound.isMuted) {
+                    icon.className = 'fa-solid fa-volume-xmark text-red-400';
+                    text.textContent = 'MUTED';
+                    this.sound.stopBGM();
+                } else {
+                    icon.className = 'fa-solid fa-volume-high text-emerald-400';
+                    text.textContent = 'AUDIO ON';
+                    this.sound.startBGM();
+                }
+            }
+
+            loadQuestion() {
+                this.answered = false;
+                this.sound.startBGM();
+                document.getElementById('feedbackBox').classList.add('hidden');
+
+                if (this.currentQuestionIdx < QUESTIONS_BANK.length) {
+                    this.currentQ = QUESTIONS_BANK[this.currentQuestionIdx];
+                } else {
+                    this.currentQ = generateProceduralQuestion(this.currentQuestionIdx);
+                }
+
+                document.getElementById('questionNum').textContent = this.currentQuestionIdx + 1;
+                document.getElementById('controlCategory').textContent = `${this.currentQ.category} (${this.currentQ.clause})`;
+                document.getElementById('questionText').textContent = this.currentQ.question;
+
+                // Auditor reactions based on stress
+                const auditorQuotes = [
+                    `"Well Dave, let's examine your ${this.currentQ.clause} evidence..."`,
+                    `"Dave, your forehead is glowing red. Let's talk about ${this.currentQ.clause}."`,
+                    `"I'm opening my Non-Conformity notebook, Dave. Answer carefully."`,
+                    `"Dave... I smell burning toast. Focus on ${this.currentQ.clause}!"`,
+                    `"This is your final chance Dave. One more mistake and ISO certification fails!"`
+                ];
+                const quoteIdx = Math.min(this.strikes, auditorQuotes.length - 1);
+                document.getElementById('auditorComment').textContent = auditorQuotes[quoteIdx];
+
+                // Render options
+                const container = document.getElementById('optionsContainer');
+                container.innerHTML = '';
+
+                this.currentQ.options.forEach((opt, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = "w-full text-left p-3.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700/80 hover:border-slate-500 transition font-medium text-xs sm:text-sm flex items-start gap-3 group";
+                    btn.onclick = () => this.selectAnswer(idx);
+                    btn.innerHTML = `
+                        <span class="w-6 h-6 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 font-mono text-xs flex items-center justify-center group-hover:border-red-500 group-hover:text-red-400 shrink-0">
+                            ${String.fromCharCode(65 + idx)}
+                        </span>
+                        <span class="mt-0.5 leading-snug text-slate-200">${opt}</span>
+                    `;
+                    container.appendChild(btn);
+                });
+            }
+
+            selectAnswer(idx) {
+                if (this.answered) return;
+                this.answered = true;
+
+                const isCorrect = idx === this.currentQ.correct;
+                const feedbackBox = document.getElementById('feedbackBox');
+                const feedbackIcon = document.getElementById('feedbackIcon');
+                const feedbackTitle = document.getElementById('feedbackTitle');
+                const feedbackText = document.getElementById('feedbackText');
+
+                feedbackBox.classList.remove('hidden', 'bg-emerald-950/80', 'border-emerald-600', 'bg-red-950/80', 'border-red-600');
+
+                if (isCorrect) {
+                    this.score++;
+                    document.getElementById('scoreDisplay').textContent = this.score;
+                    this.sound.playCorrect();
+
+                    feedbackBox.classList.add('bg-emerald-950/80', 'border-emerald-600');
+                    feedbackIcon.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i>`;
+                    feedbackTitle.textContent = "CONFORMITY DEMONSTRATED!";
+                    feedbackTitle.className = "font-bold text-sm text-emerald-400";
+                    feedbackText.textContent = `Excellent work Dave! ${this.currentQ.explanation}`;
+                } else {
+                    this.strikes++;
+                    document.getElementById('strikeDisplay').textContent = `${this.strikes}/${this.maxStrikes}`;
+                    this.sound.playWrong();
+                    this.renderDaveStress(this.strikes);
+
+                    feedbackBox.classList.add('bg-red-950/80', 'border-red-600');
+                    feedbackIcon.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-400"></i>`;
+                    feedbackTitle.textContent = "MAJOR NON-CONFORMITY RAISED!";
+                    feedbackTitle.className = "font-bold text-sm text-red-400";
+                    feedbackText.textContent = `Wrong! Correct answer: "${this.currentQ.options[this.currentQ.correct]}". ${this.currentQ.explanation}`;
+                }
+
+                // Disable option buttons
+                const buttons = document.getElementById('optionsContainer').querySelectorAll('button');
+                buttons.forEach((btn, i) => {
+                    btn.disabled = true;
+                    if (i === this.currentQ.correct) {
+                        btn.classList.add('border-emerald-500', 'bg-emerald-900/30');
+                    } else if (i === idx && !isCorrect) {
+                        btn.classList.add('border-red-500', 'bg-red-900/30');
+                    }
+                });
+
+                if (this.strikes >= this.maxStrikes) {
+                    setTimeout(() => this.triggerExplosion(), 800);
+                }
+            }
+
+            nextQuestion() {
+                if (this.strikes >= this.maxStrikes) {
+                    this.triggerExplosion();
+                    return;
+                }
+                this.currentQuestionIdx++;
+                this.loadQuestion();
+            }
+
+            renderDaveStress(level) {
+                const daveWrapper = document.getElementById('daveWrapper');
+                const redness = document.getElementById('rednessOverlay');
+                const aura = document.getElementById('stressAura');
+                const sweat = document.getElementById('sweatGroup');
+                const veins = document.getElementById('veinsGroup');
+                const steam = document.getElementById('steamGroup');
+                const stressBar = document.getElementById('stressBar');
+                const stressPercent = document.getElementById('stressPercent');
+
+                const percent = (level / this.maxStrikes) * 100;
+                stressBar.style.width = `${percent}%`;
+
+                // Eyebrows & Mouth paths
+                const leftBrow = document.getElementById('leftBrow');
+                const rightBrow = document.getElementById('rightBrow');
+                const mouth = document.getElementById('mouth');
+                const leftPupil = document.getElementById('leftPupil');
+                const rightPupil = document.getElementById('rightPupil');
+
+                switch(level) {
+                    case 0:
+                        stressPercent.textContent = "NORMAL (120/80)";
+                        stressPercent.className = "text-emerald-400 font-mono";
+                        redness.setAttribute('opacity', '0');
+                        aura.setAttribute('opacity', '0');
+                        sweat.setAttribute('opacity', '0');
+                        veins.setAttribute('opacity', '0');
+                        steam.setAttribute('opacity', '0');
+                        daveWrapper.className = "relative z-10 transition-transform duration-300";
+                        leftBrow.setAttribute('d', 'M 110,120 Q 125,115 140,122');
+                        rightBrow.setAttribute('d', 'M 160,122 Q 175,115 190,120');
+                        mouth.setAttribute('d', 'M 135,175 Q 150,180 165,175');
+                        break;
+
+                    case 1:
+                        stressPercent.textContent = "ELEVATED (140/95) - Sweating";
+                        stressPercent.className = "text-yellow-400 font-mono";
+                        redness.setAttribute('opacity', '0.2');
+                        sweat.setAttribute('opacity', '1');
+                        leftBrow.setAttribute('d', 'M 110,118 Q 125,122 140,120');
+                        rightBrow.setAttribute('d', 'M 160,120 Q 175,122 190,118');
+                        mouth.setAttribute('d', 'M 135,178 Q 150,175 165,178');
+                        break;
+
+                    case 2:
+                        stressPercent.textContent = "HIGH (160/110) - Eyeball Twitch";
+                        stressPercent.className = "text-amber-400 font-mono";
+                        redness.setAttribute('opacity', '0.4');
+                        aura.setAttribute('opacity', '0.2');
+                        sweat.setAttribute('opacity', '1');
+                        veins.setAttribute('opacity', '0.6');
+                        daveWrapper.className = "relative z-10 animate-pulse-fast";
+                        leftBrow.setAttribute('d', 'M 110,125 Q 125,115 140,115');
+                        rightBrow.setAttribute('d', 'M 160,115 Q 175,115 190,125');
+                        mouth.setAttribute('d', 'M 135,182 Q 150,170 165,182');
+                        break;
+
+                    case 3:
+                        stressPercent.textContent = "CRITICAL (190/130) - Veins Popping";
+                        stressPercent.className = "text-orange-500 font-mono font-bold";
+                        redness.setAttribute('opacity', '0.6');
+                        aura.setAttribute('opacity', '0.4');
+                        veins.setAttribute('opacity', '1');
+                        leftPupil.setAttribute('r', '2');
+                        rightPupil.setAttribute('r', '6'); // Unmatched pupils (extreme distress)
+                        daveWrapper.className = "relative z-10 animate-head-shake";
+                        mouth.setAttribute('d', 'M 130,185 Q 150,165 170,185');
+                        break;
+
+                    case 4:
+                        stressPercent.textContent = "EXTREME DANGER (230/150) - EARS STEAMING!";
+                        stressPercent.className = "text-red-500 font-mono font-extrabold animate-pulse";
+                        redness.setAttribute('opacity', '0.85');
+                        aura.setAttribute('opacity', '0.7');
+                        steam.setAttribute('opacity', '1');
+                        daveWrapper.className = "relative z-10 animate-head-shake scale-105";
+                        mouth.setAttribute('d', 'M 125,190 Q 150,160 175,190 Z');
+                        break;
+
+                    case 5:
+                        stressPercent.textContent = "CRITICAL FAILURE - HEAD EXPLODE!";
+                        stressPercent.className = "text-red-600 font-mono font-extrabold";
+                        break;
+                }
+            }
+
+            useCoping(type) {
+                if (this.answered) return;
+
+                if (type === 'coffee' && !this.copingUsed.coffee) {
+                    this.copingUsed.coffee = true;
+                    document.getElementById('coffeeBtn').disabled = true;
+                    this.sound.playSip();
+                    if (this.strikes > 0) {
+                        this.strikes--;
+                        document.getElementById('strikeDisplay').textContent = `${this.strikes}/${this.maxStrikes}`;
+                        this.renderDaveStress(this.strikes);
+                    }
+                    document.getElementById('auditorComment').textContent = `"Dave takes a long sip of lukewarm instant coffee. Blood pressure drops slightly."`;
+                }
+
+                if (type === 'blame' && !this.copingUsed.blame) {
+                    this.copingUsed.blame = true;
+                    document.getElementById('blameBtn').disabled = true;
+                    this.sound.playSip();
+
+                    // Remove 2 wrong options from current question
+                    const wrongIndices = [];
+                    this.currentQ.options.forEach((_, idx) => {
+                        if (idx !== this.currentQ.correct) wrongIndices.push(idx);
+                    });
+
+                    // Randomly hide 2 wrong buttons
+                    const buttons = document.getElementById('optionsContainer').querySelectorAll('button');
+                    wrongIndices.slice(0, 2).forEach(idx => {
+                        buttons[idx].style.opacity = '0.2';
+                        buttons[idx].disabled = true;
+                    });
+
+                    document.getElementById('auditorComment').textContent = `"Dave points out that Cloud Supplier X is responsible for this control. 2 invalid choices eliminated!"`;
+                }
+            }
+
+            triggerExplosion() {
+                this.sound.stopBGM();
+                this.sound.playExplosion();
+
+                // Hide head SVG group, display exploded particles on Canvas
+                document.getElementById('headGroup').style.display = 'none';
+
+                const canvas = document.getElementById('explosionCanvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = canvas.offsetWidth;
+                canvas.height = canvas.offsetHeight;
+
+                // Particle explosion setup
+                const particles = [];
+                const colors = ['#dc2626', '#1e293b', '#ffdbac', '#4a2c11', '#f59e0b', '#ffffff', '#000000'];
+
+                for (let i = 0; i < 120; i++) {
+                    particles.push({
+                        x: canvas.width / 2,
+                        y: canvas.height / 2,
+                        vx: (Math.random() - 0.5) * 16,
+                        vy: (Math.random() - 0.6) * 16,
+                        size: Math.random() * 8 + 3,
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        rotation: Math.random() * Math.PI,
+                        vRot: (Math.random() - 0.5) * 0.2,
+                        life: 1
+                    });
+                }
+
+                let animationFrame;
+                const animateParticles = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    let alive = false;
+
+                    particles.forEach(p => {
+                        if (p.life > 0) {
+                            alive = true;
+                            p.x += p.vx;
+                            p.y += p.vy;
+                            p.vy += 0.3; // Gravity
+                            p.rotation += p.vRot;
+                            p.life -= 0.015;
+
+                            ctx.save();
+                            ctx.translate(p.x, p.y);
+                            ctx.rotate(p.rotation);
+                            ctx.fillStyle = p.color;
+                            ctx.globalAlpha = Math.max(0, p.life);
+                            ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                            ctx.restore();
+                        }
+                    });
+
+                    if (alive) {
+                        animationFrame = requestAnimationFrame(animateParticles);
+                    } else {
+                        // Show modal after explosion finishes
+                        document.getElementById('finalScore').textContent = `${this.score} Passed Controls`;
+                        const deathQuotes = [
+                            `"Dave's last words were: 'It was listed in our Risk Register under low probability!'"`,
+                            `"Inspector Vance solemnly wrote: 'Auditee head combustion noted under Annex A.8 technical physical failure.'"`,
+                            `"Dave failed to present the Statement of Applicability in time."`,
+                            `"The auditor demanded evidence of backup restore tests from 2019."`
+                        ];
+                        document.getElementById('deathQuote').textContent = deathQuotes[Math.floor(Math.random() * deathQuotes.length)];
+                        document.getElementById('gameOverModal').classList.remove('hidden');
+                    }
+                };
+
+                animateParticles();
+            }
+
+            restart() {
+                this.score = 0;
+                this.strikes = 0;
+                this.currentQuestionIdx = 0;
+                this.copingUsed = { coffee: false, blame: false };
+
+                document.getElementById('scoreDisplay').textContent = '0';
+                document.getElementById('strikeDisplay').textContent = '0/5';
+                document.getElementById('coffeeBtn').disabled = false;
+                document.getElementById('blameBtn').disabled = false;
+                document.getElementById('gameOverModal').classList.add('hidden');
+                document.getElementById('headGroup').style.display = 'inline';
+
+                this.renderDaveStress(0);
+                this.loadQuestion();
+            }
+        }
+
+        // Global Instance Initialization
+        let game;
+        window.onload = () => {
+            game = new AuditGame();
+            game.init();
+        };
+    </script>
+</body>
+</html>
